@@ -95,7 +95,7 @@ Full interactive API docs available at `http://localhost:8000/docs` (Swagger UI)
 ### Run Locally
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/scalable-notification-service.git
+git clone https://github.com/kareemadesola/scalable-notification-service.git
 cd scalable-notification-service
 
 cp .env.example .env
