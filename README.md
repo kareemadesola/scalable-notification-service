@@ -101,7 +101,7 @@ scalable-notification-service/
 │   ├── email_processor/      # RabbitMQ consumer → SendGrid
 │   ├── sms_processor/        # RabbitMQ consumer → Twilio
 │   ├── push_processor/       # RabbitMQ consumer → FCM
-│   ├── inapp_processor/      # RabbitMQ consumer → WebSocket
+│   ├── inapp_service/        # WebSocket server (bypasses queue, direct delivery)
 │   └── scheduler/            # Polls DB, enqueues future notifications
 ├── db/
 │   └── init.sql              # Database schema

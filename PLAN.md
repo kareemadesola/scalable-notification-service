@@ -56,7 +56,7 @@ scalable-notification-service/
 │   │   ├── Dockerfile
 │   │   ├── consumer.py
 │   │   └── requirements.txt
-│   ├── inapp_processor/            # RabbitMQ consumer → WebSocket broadcast
+│   ├── inapp_service/              # WebSocket server (bypasses queue, direct delivery)
 │   │   ├── Dockerfile
 │   │   ├── consumer.py
 │   │   └── requirements.txt
@@ -96,7 +96,7 @@ scalable-notification-service/
 - [ ] Email Processor (consumer + SendGrid mock)
 - [ ] SMS Processor (consumer + Twilio mock)
 - [ ] Push Processor (consumer + FCM mock)
-- [ ] In-App Processor (consumer + WebSocket broadcast)
+- [ ] In-App Service (WebSocket server, direct write to DB, bypasses queue)
 - [ ] Dead Letter Queue (DLQ) handling
 - [ ] Exponential backoff retry logic
 
