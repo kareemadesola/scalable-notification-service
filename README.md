@@ -18,31 +18,6 @@ A production-grade notification service built as a system design portfolio proje
 
 > Full component descriptions: [docs/architecture.md](docs/architecture.md)
 
-### High-Level Flow
-
-```
-Client / Internal Service
-        │
-        ▼
-  API Gateway (FastAPI)
-        │
-        ├── Check User Preferences (Redis cache → PostgreSQL)
-        ├── Schedule? → Scheduler Service
-        │
-        ▼
-  RabbitMQ (per-channel topics)
-  ┌──────┬──────┬──────┬────────┐
-  Email  SMS   Push  In-App
-    │      │     │       │
-    ▼      ▼     ▼       ▼
- SendGrid Twilio FCM  WebSocket
-        │
-        ▼
-  notification_logs (PostgreSQL)
-        │
-  Dead Letter Queue (on failure)
-```
-
 ---
 
 ## Features
