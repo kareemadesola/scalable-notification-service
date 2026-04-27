@@ -2,6 +2,10 @@
 
 ## High-Level Diagram
 
+![Architecture Diagram](architecture-diagram.svg)
+
+### ASCII Reference
+
 ```
  ┌──────────────────────────────────────────────────────────────────────┐
  │                         Clients / Services                           │

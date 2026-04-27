@@ -14,7 +14,9 @@ A production-grade notification service built as a system design portfolio proje
 
 ## Architecture
 
-> Architecture diagram coming soon (see `docs/architecture.md`)
+![Architecture Diagram](docs/architecture-diagram.svg)
+
+> Full component descriptions: [docs/architecture.md](docs/architecture.md)
 
 ### High-Level Flow
 
