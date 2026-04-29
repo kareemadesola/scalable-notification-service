@@ -106,12 +106,12 @@ scalable-notification-service/
 - [ ] Redis caching for user preferences
 
 ## Phase 5 — Observability & Polish
-- [ ] Prometheus metrics (throughput, latency, failure rate per channel)
-- [ ] Grafana dashboard
-- [ ] Structured JSON logging (structlog) in every service
-- [ ] JWT auth middleware
-- [ ] API rate limiting middleware
-- [ ] Delivery logs written to `notification_logs` table
+- [x] Prometheus metrics (throughput, latency, failure rate per channel)
+- [x] Grafana dashboard
+- [x] Structured JSON logging (structlog) in every service
+- [x] JWT auth middleware
+- [x] API rate limiting middleware
+- [x] Delivery logs written to `notification_logs` table
 - [ ] Architecture diagram (Excalidraw / draw.io)
 - [ ] Final README polish
 

@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
 import structlog
 
+from auth import get_current_subject
 from config import settings
 from db.database import get_db
 from models.models import NotificationChannel, NotificationStatus
@@ -17,7 +18,11 @@ from services.notification_service import (
     update_notification,
 )
 
-router = APIRouter(prefix="/notifications", tags=["Notifications"])
+router = APIRouter(
+    prefix="/notifications",
+    tags=["Notifications"],
+    dependencies=[Depends(get_current_subject)],
+)
 logger = structlog.get_logger()
 
 

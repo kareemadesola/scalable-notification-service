@@ -5,10 +5,14 @@ from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from cache.redis_client import close_redis
+from config import settings
 from db.database import engine, Base
+from logging_config import configure_logging
+from middleware.rate_limit import RateLimitMiddleware
 from queue.publisher import RabbitMQPublisher
 from routers import notifications, users
 
+configure_logging(settings.app_env)
 logger = structlog.get_logger()
 
 
@@ -38,6 +42,9 @@ app = FastAPI(
 
 # Prometheus metrics — exposes /metrics endpoint
 Instrumentator().instrument(app).expose(app)
+
+# Middleware (applied in reverse order — rate limit runs first)
+app.add_middleware(RateLimitMiddleware)
 
 # Routers
 app.include_router(notifications.router)

@@ -3,13 +3,18 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from auth import get_current_subject
 from db.database import get_db
 from schemas.notification import PaginatedNotifications, NotificationResponse
 from schemas.user import UserPreferenceResponse, UserPreferenceUpdate
 from services.notification_service import get_user_notifications
 from services.user_service import get_preferences, update_preferences
 
-router = APIRouter(prefix="/users", tags=["Users"])
+router = APIRouter(
+    prefix="/users",
+    tags=["Users"],
+    dependencies=[Depends(get_current_subject)],
+)
 
 
 @router.get("/{user_id}/notifications", response_model=PaginatedNotifications)
