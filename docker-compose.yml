@@ -111,8 +111,8 @@ services:
   # ── Email Processor ───────────────────────────────────────────
   email_processor:
     build:
-      context: ./services/email_processor
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: email_processor/Dockerfile
     container_name: ns_email_processor
     restart: unless-stopped
     env_file: .env
@@ -128,8 +128,8 @@ services:
   # ── SMS Processor ─────────────────────────────────────────────
   sms_processor:
     build:
-      context: ./services/sms_processor
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: sms_processor/Dockerfile
     container_name: ns_sms_processor
     restart: unless-stopped
     env_file: .env
@@ -145,8 +145,8 @@ services:
   # ── Push Processor ────────────────────────────────────────────
   push_processor:
     build:
-      context: ./services/push_processor
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: push_processor/Dockerfile
     container_name: ns_push_processor
     restart: unless-stopped
     env_file: .env
