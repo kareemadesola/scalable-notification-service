@@ -15,7 +15,7 @@ class NotificationCreate(BaseModel):
     channel: NotificationChannel
     subject: Optional[str] = None
     body: str = Field(..., min_length=1)
-    metadata: Optional[dict] = None
+    extra_data: Optional[dict] = None
     scheduled_at: Optional[datetime] = None
 
 

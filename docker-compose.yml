@@ -45,10 +45,11 @@ services:
       - "5672:5672"    # AMQP
       - "15672:15672"  # Management UI
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 15s
+      retries: 10
+      start_period: 90s
 
   # ── Notification API ──────────────────────────────────────────────────
   api:
@@ -68,7 +69,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")'"]
       interval: 15s
       timeout: 5s
       retries: 5

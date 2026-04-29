@@ -50,7 +50,7 @@ async def create_notification_endpoint(
                             "id": notification.id,
                             "subject": notification.subject,
                             "body": notification.body,
-                            "metadata": notification.metadata,
+                            "metadata": notification.extra_data,
                         },
                         timeout=2.0,
                     )
@@ -69,7 +69,7 @@ async def create_notification_endpoint(
                     "type": notification.type.value,
                     "subject": notification.subject,
                     "body": notification.body,
-                    "metadata": notification.metadata,
+                    "metadata": notification.extra_data,
                 },
             )
             notification.status = NotificationStatus.queued

@@ -60,7 +60,7 @@ async def create_notification(
         status=initial_status,
         subject=data.subject,
         body=data.body,
-        metadata=data.metadata,
+        extra_data=data.extra_data,
         scheduled_at=data.scheduled_at,
     )
     db.add(notification)

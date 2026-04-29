@@ -28,7 +28,15 @@ _connections: DefaultDict[str, set[WebSocket]] = defaultdict(set)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.db_pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=5)
+    for attempt in range(1, 11):
+        try:
+            app.state.db_pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=5)
+            break
+        except Exception as exc:
+            logger.warning("DB connection failed, retrying", attempt=attempt, error=str(exc))
+            if attempt == 10:
+                raise
+            await asyncio.sleep(attempt * 2)
     logger.info("In-App service started")
     yield
     await app.state.db_pool.close()

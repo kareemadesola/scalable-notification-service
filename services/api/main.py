@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 import structlog
@@ -9,7 +10,7 @@ from config import settings
 from db.database import engine, Base
 from logging_config import configure_logging
 from middleware.rate_limit import RateLimitMiddleware
-from queue.publisher import RabbitMQPublisher
+from mq.publisher import RabbitMQPublisher
 from routers import notifications, users
 
 configure_logging(settings.app_env)
@@ -18,12 +19,29 @@ logger = structlog.get_logger()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup — retry DB and RabbitMQ in case of a brief post-health-check gap
     logger.info("Starting Notification Service")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    for attempt in range(1, 6):
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            break
+        except Exception as exc:
+            logger.warning("DB not ready, retrying", attempt=attempt, error=str(exc))
+            if attempt == 5:
+                raise
+            await asyncio.sleep(attempt * 2)
+
     app.state.publisher = RabbitMQPublisher()
-    await app.state.publisher.connect()
+    for attempt in range(1, 6):
+        try:
+            await app.state.publisher.connect()
+            break
+        except Exception as exc:
+            logger.warning("RabbitMQ not ready, retrying", attempt=attempt, error=str(exc))
+            if attempt == 5:
+                raise
+            await asyncio.sleep(attempt * 2)
     logger.info("RabbitMQ publisher connected")
     yield
     # Shutdown

@@ -90,7 +90,7 @@ class Notification(Base):
     status       = Column(Enum(NotificationStatus, name="notification_status"), nullable=False, default=NotificationStatus.pending)
     subject      = Column(String(255))
     body         = Column(Text, nullable=False)
-    metadata     = Column(JSONB)
+    extra_data   = Column("metadata", JSONB)
     is_read      = Column(Boolean, nullable=False, default=False)
     scheduled_at = Column(TIMESTAMP(timezone=True))
     created_at   = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
