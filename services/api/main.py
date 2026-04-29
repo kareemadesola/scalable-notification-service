@@ -11,7 +11,7 @@ from db.database import engine, Base
 from logging_config import configure_logging
 from middleware.rate_limit import RateLimitMiddleware
 from mq.publisher import RabbitMQPublisher
-from routers import notifications, users
+from routers import notifications, users, auth
 
 configure_logging(settings.app_env)
 logger = structlog.get_logger()
@@ -65,6 +65,7 @@ Instrumentator().instrument(app).expose(app)
 app.add_middleware(RateLimitMiddleware)
 
 # Routers
+app.include_router(auth.router)
 app.include_router(notifications.router)
 app.include_router(users.router)
 

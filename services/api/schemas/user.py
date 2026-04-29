@@ -4,6 +4,29 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr
 
 
+# ── Auth Schemas ───────────────────────────────────────────────
+
+class TokenRequest(BaseModel):
+    user_id: UUID
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int  # seconds until access token expires
+
+
+class AccessTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
 # ── User Schemas ───────────────────────────────────────────────
 
 class UserCreate(BaseModel):
