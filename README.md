@@ -8,7 +8,7 @@
 ![Docker](https://img.shields.io/badge/Docker-Compose-blue?logo=docker)
 ![Grafana](https://img.shields.io/badge/Grafana-Prometheus-F46800?logo=grafana)
 
-A production-grade notification service built as a system design portfolio project. Supports multi-channel delivery (email, SMS, push, in-app), user preferences, scheduled notifications, retry with dead-letter queues, and full observability via Prometheus + Grafana.
+A production-grade notification service built as a system design portfolio project. Handles multi-channel delivery (email, SMS, push, in-app WebSocket), user preferences, scheduled notifications, retry with exponential backoff, dead-letter queues, JWT auth, Redis rate limiting, and full observability via Prometheus + Grafana.
 
 ---
 
@@ -22,16 +22,19 @@ A production-grade notification service built as a system design portfolio proje
 
 ## Features
 
-- **Multi-channel delivery** — email, SMS, push notifications, in-app (WebSocket)
-- **User preferences** — per-channel opt-in/out, daily rate limiting
-- **Scheduled notifications** — deliver at a future time via Scheduler Service
-- **Retry with exponential backoff** — automatic retry on transient failures
-- **Dead Letter Queue (DLQ)** — failed messages captured for manual review
-- **Delivery logging** — full audit trail in `notification_logs` table
-- **Redis caching** — user preferences cached to reduce DB load
-- **Prometheus + Grafana** — metrics: throughput, latency, failure rate per channel; structured JSON logs via `structlog`
-- **JWT authentication** — secured API endpoints
-- **Rate limiting** — per-client API throttling
+- **Multi-channel delivery** — email (SendGrid), SMS (Twilio), push (FCM), in-app (WebSocket)
+- **User preferences** — per-channel opt-in/out, per-type opt-in/out (transactional / promotional / system alerts)
+- **Promotional rate limiting** — configurable daily cap per user enforced via Redis counters
+- **Do-not-disturb** — configurable quiet hours stored per user
+- **Scheduled notifications** — set `scheduled_at` for future delivery; Scheduler Service polls and dispatches
+- **Retry with exponential backoff** — 3 attempts (2s → 4s → 8s), then Dead Letter Queue
+- **Dead Letter Queue (DLQ)** — failed messages preserved for manual review without data loss
+- **Delivery logging** — every attempt recorded in `notification_logs` (status, attempt number, provider response)
+- **Redis caching** — user preferences cached (5 min TTL) to eliminate hot-path DB reads
+- **JWT authentication** — Bearer token required on all protected endpoints
+- **API rate limiting** — 100 req/60s per IP via Redis sliding window; returns `429` with `Retry-After`
+- **Prometheus + Grafana** — request rate, p95 latency, error rate, active connections; auto-provisioned dashboard
+- **Structured JSON logging** — `structlog` throughout; JSON in production, colour console in development
 
 ---
 
@@ -48,18 +51,40 @@ A production-grade notification service built as a system design portfolio proje
 
 ---
 
+## Services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| `api` | 8000 | FastAPI — ingestion, preference checks, publishes to RabbitMQ |
+| `inapp_service` | 8001 | FastAPI WebSocket server — real-time in-app delivery |
+| `email_processor` | — | RabbitMQ consumer → SendGrid |
+| `sms_processor` | — | RabbitMQ consumer → Twilio |
+| `push_processor` | — | RabbitMQ consumer → FCM |
+| `scheduler` | — | Polls DB every 60s, dispatches due scheduled notifications |
+| `postgres` | 5432 | Primary data store |
+| `redis` | 6379 | Preference cache + rate limiting |
+| `rabbitmq` | 5672 / 15672 | Message broker (Management UI on 15672) |
+| `prometheus` | 9090 | Metrics scraping |
+| `grafana` | 3000 | Dashboards |
+
+---
+
 ## API Endpoints
+
+All endpoints require `Authorization: Bearer <token>`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/notifications` | Create and dispatch a notification |
 | `GET` | `/notifications/:id` | Fetch notification by ID |
-| `GET` | `/users/:id/notifications` | Paginated user inbox |
-| `PATCH` | `/notifications/:id` | Mark read/unread |
+| `PATCH` | `/notifications/:id` | Update status or mark read/unread |
+| `GET` | `/users/:id/notifications` | Paginated inbox (newest first) |
 | `GET` | `/users/:id/preferences` | Fetch user notification preferences |
-| `PUT` | `/users/:id/preferences` | Update user preferences |
+| `PUT` | `/users/:id/preferences` | Update preferences (partial update supported) |
+| `GET` | `/health` | Health check (no auth required) |
+| `GET` | `/metrics` | Prometheus metrics (no auth required) |
 
-Full interactive API docs available at `http://localhost:8000/docs` (Swagger UI) when running locally.
+Interactive API docs: `http://localhost:8000/docs`
 
 ---
 
@@ -67,7 +92,6 @@ Full interactive API docs available at `http://localhost:8000/docs` (Swagger UI)
 
 ### Prerequisites
 - Docker & Docker Compose
-- Python 3.12+
 
 ### Run Locally
 
@@ -76,19 +100,27 @@ git clone https://github.com/kareemadesola/scalable-notification-service.git
 cd scalable-notification-service
 
 cp .env.example .env
-# Fill in your credentials (SendGrid, Twilio, etc.) or leave mocks enabled
+# All channels default to mock mode — no real credentials needed
 
 docker compose up --build
 ```
 
-Services will be available at:
 | Service | URL |
 |---------|-----|
 | API | http://localhost:8000 |
-| API Docs | http://localhost:8000/docs |
+| API Docs (Swagger) | http://localhost:8000/docs |
+| In-App WebSocket | ws://localhost:8001/ws/{user_id} |
 | RabbitMQ UI | http://localhost:15672 |
 | Grafana | http://localhost:3000 |
 | Prometheus | http://localhost:9090 |
+
+### Generate a JWT (for testing)
+
+```python
+from services.api.auth import create_access_token
+token = create_access_token("my-service")
+print(token)
+```
 
 ---
 
@@ -97,17 +129,33 @@ Services will be available at:
 ```
 scalable-notification-service/
 ├── services/
-│   ├── api/                  # FastAPI notification service
-│   ├── email_processor/      # RabbitMQ consumer → SendGrid
-│   ├── sms_processor/        # RabbitMQ consumer → Twilio
-│   ├── push_processor/       # RabbitMQ consumer → FCM
-│   ├── inapp_service/        # WebSocket server (bypasses queue, direct delivery)
-│   └── scheduler/            # Polls DB, enqueues future notifications
+│   ├── api/                      # FastAPI notification service
+│   │   ├── auth.py               # JWT encode/decode + dependency
+│   │   ├── config.py             # Pydantic settings
+│   │   ├── logging_config.py     # structlog setup
+│   │   ├── main.py               # App factory, lifespan, middleware
+│   │   ├── cache/                # Redis async client
+│   │   ├── db/                   # SQLAlchemy engine + session
+│   │   ├── middleware/           # Rate limiting
+│   │   ├── models/               # ORM models
+│   │   ├── routers/              # notifications.py, users.py
+│   │   ├── schemas/              # Pydantic request/response schemas
+│   │   └── services/             # Business logic (preference, notification, user)
+│   ├── email_processor/          # RabbitMQ consumer → SendGrid
+│   ├── sms_processor/            # RabbitMQ consumer → Twilio
+│   ├── push_processor/           # RabbitMQ consumer → FCM
+│   ├── inapp_service/            # WebSocket server (bypasses queue)
+│   ├── scheduler/                # Polls DB, dispatches due notifications
+│   └── shared/
+│       └── base_consumer.py      # Shared retry + DLQ + DB logging logic
 ├── db/
-│   └── init.sql              # Database schema
+│   └── init.sql                  # Full PostgreSQL schema + triggers
 ├── monitoring/
-│   ├── prometheus.yml
-│   └── grafana/dashboards/
+│   ├── prometheus.yml            # Scrape config
+│   └── grafana/provisioning/     # Auto-provisioned datasource + dashboard
+├── docs/
+│   ├── architecture.md
+│   └── architecture-diagram.svg
 ├── docker-compose.yml
 └── .env.example
 ```
@@ -117,31 +165,37 @@ scalable-notification-service/
 ## Key Design Decisions
 
 **Why RabbitMQ over Kafka?**
-RabbitMQ is sufficient for this scale and simpler to operate. At >10K sustained msg/sec with replay/audit requirements, Kafka would be the right choice.
+RabbitMQ is sufficient for this load and operationally simpler. Kafka would be the right swap at >10K sustained msg/sec where log replay and consumer group semantics matter.
 
 **Why per-channel queues?**
-Each channel (email, SMS, push, in-app) has different throughput, latency requirements, and failure modes. Separate queues allow independent scaling.
+Email, SMS, and push have different throughput, latency, and failure profiles. Separate queues allow each processor to scale independently without one channel blocking another.
+
+**Why in-app bypasses the queue?**
+In-app notifications require sub-second latency. The API writes to DB and broadcasts directly via the WebSocket service. If the user is offline, the notification sits in the DB and is served on the next `GET /users/:id/notifications` call.
 
 **Why Redis for preferences?**
-User preferences are read on every notification dispatch. Caching them avoids a hot-path DB read that would become a bottleneck at scale.
+Preferences are read on every single notification dispatch. At 17K req/sec, a DB hit on every request would saturate PostgreSQL. Redis caches them for 5 minutes; cache is invalidated on every `PUT /users/:id/preferences`.
 
-**Why WebSockets for in-app only?**
-Email/SMS/push have inherent async delivery via third-party providers. In-app benefits from real-time push; other channels don't require persistent connections.
+**Why exponential backoff + DLQ?**
+Transient failures (network blips, provider downtime) should be retried. Permanent failures (invalid addresses, expired tokens) should not block the queue. DLQ preserves failed messages for manual inspection without data loss.
 
 ---
 
 ## What I Learned
 
-This project was built to reinforce system design concepts after studying notification service architecture:
+This project was built to reinforce system design concepts:
 
-- Decoupling ingestion from delivery using a message queue
-- Channel-specific processing with independent scaling
-- Rate limiting and user preference enforcement before queueing
-- Retry patterns (exponential backoff) and DLQ for reliability
-- Observability: metrics, logging, and alerting in a distributed system
+- Decoupling ingestion from delivery with a message queue (RabbitMQ)
+- Channel-specific consumers with independent scaling and failure modes
+- Hot-path caching strategy (Redis) to protect the database at scale
+- Promotional rate limiting using Redis atomic counters (no race conditions)
+- Retry patterns (exponential backoff) and DLQ for at-least-once delivery guarantees
+- Real-time vs. async delivery trade-offs (WebSocket vs. queue)
+- Observability: Prometheus metrics, structured JSON logs, Grafana dashboards
 
 ---
 
 ## License
 
 MIT — see [LICENSE](LICENSE)
+
