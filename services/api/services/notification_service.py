@@ -65,6 +65,7 @@ async def create_notification(
     )
     db.add(notification)
     await db.flush()  # get the generated id before commit
+    await db.refresh(notification)  # load server-side defaults (created_at, updated_at)
 
     logger.info(
         "Notification created",
@@ -128,5 +129,6 @@ async def update_notification(
         notification.status = data.status
 
     await db.flush()
+    await db.refresh(notification)  # reload server-side columns
     logger.info("Notification updated", notification_id=notification_id)
     return notification

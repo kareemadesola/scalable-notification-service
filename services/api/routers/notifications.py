@@ -58,7 +58,14 @@ async def create_notification_endpoint(
                 # Non-fatal — notification is in DB, client can poll inbox
                 logger.warning("In-app broadcast failed", error=str(exc), notification_id=notification.id)
         else:
-            # Async channels: publish to RabbitMQ
+            # Async channels: commit to DB first, then publish to RabbitMQ.
+            # This ensures the notification row exists before the processor
+            # tries to write a notification_log referencing it.
+            notification.status = NotificationStatus.queued
+            await db.flush()
+            await db.commit()
+            await db.refresh(notification)
+
             publisher = request.app.state.publisher
             await publisher.publish(
                 queue=notification.channel.value,
@@ -72,8 +79,6 @@ async def create_notification_endpoint(
                     "metadata": notification.extra_data,
                 },
             )
-            notification.status = NotificationStatus.queued
-            await db.flush()
 
     return notification
 

@@ -238,7 +238,68 @@ test: ["CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\
 
 ---
 
-## 11. `api` startup — no retry on DB / RabbitMQ connection
+## 11. `api` — `NotificationResponse.metadata` receives `MetaData()` object
+
+**Error**
+```
+fastapi.exceptions.ResponseValidationError:
+  {'type': 'dict_type', 'loc': ('response', 'metadata'), 'msg': 'Input should be a valid dictionary', 'input': MetaData()}
+```
+
+**Root cause**
+`NotificationResponse` had a field named `metadata`. SQLAlchemy's `DeclarativeBase` attaches a class-level `metadata` attribute (a `MetaData()` object used to track table definitions) to every model. When Pydantic serialized the `Notification` ORM object using `from_attributes=True`, it picked up `Base.metadata` instead of the column value.
+
+**Fix**
+Renamed the response schema field from `metadata` to `extra_data` to match the model attribute rename done in issue #7.
+
+---
+
+## 12. `api` — `MissingGreenlet` error on `updated_at` during response serialization
+
+**Error**
+```
+MissingGreenlet: greenlet_spawn has not been called; can't call await_only() here.
+```
+
+**Root cause**
+`updated_at` is set by a DB server-side trigger on insert/update. After `db.flush()`, SQLAlchemy marks the column as "expired" — it will be lazily loaded on next access. But FastAPI serializes the response *before* the session commits and closes, so when Pydantic tried to access `notification.updated_at`, SQLAlchemy attempted an async DB call outside the async context.
+
+**Fix**
+Added `await db.refresh(notification)` after every `db.flush()` call. `refresh()` does an explicit `SELECT` to reload all server-side columns (like `updated_at`, `created_at`) while the session is still open and the async context is active.
+
+---
+
+## 13. `email_processor` — `ForeignKeyViolationError` on `notification_logs`
+
+**Error**
+```
+asyncpg.exceptions.ForeignKeyViolationError: insert or update on table "notification_logs"
+violates foreign key constraint "notification_logs_notification_id_fkey"
+DETAIL: Key (notification_id)=(X) is not present in table "notifications".
+```
+
+**Root cause**
+A race condition between the API and the processor:
+1. API publishes message to RabbitMQ queue
+2. API then updates `notification.status = queued` and calls `db.flush()`
+3. DB session commits *after* the route returns (in `get_db()`)
+4. The processor consumes the RabbitMQ message almost instantly and tries to insert a `notification_log` row referencing the notification
+5. But the notification row hasn't been committed to the DB yet → FK violation
+
+**Fix**
+Moved the DB commit to *before* the RabbitMQ publish in the router. The sequence is now:
+1. `notification.status = queued`
+2. `await db.flush()`
+3. `await db.commit()` ← commit first so the row is visible to other services
+4. `await db.refresh(notification)` ← reload columns
+5. `await publisher.publish(...)` ← only now publish to RabbitMQ
+
+**Lesson**
+In any system where a message queue triggers work that reads from the DB, always commit the DB transaction before publishing the message. Otherwise you create a race condition where the consumer sees the message before the data it references exists.
+
+---
+
+## 14. `api` startup — no retry on DB / RabbitMQ connection
 
 **Root cause**
 Even with `depends_on: condition: service_healthy` in Docker Compose, there can be a small window between a dependency passing its health check and being fully ready to accept connections. With no retry logic, the first connection attempt could fail and crash the app.

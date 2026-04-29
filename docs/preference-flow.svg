@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 435" width="540" height="435" font-family="ui-monospace, Menlo, monospace">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <marker id="ah-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="540" height="435" rx="14" fill="#0f172a"/>
+
+  <!-- Title -->
+  <text x="270" y="20" text-anchor="middle" dominant-baseline="central" fill="#475569" font-size="10" letter-spacing="2">PREFERENCE GATE FLOW</text>
+
+  <!-- ── Vertical (happy-path) arrows ── -->
+  <path id="v0" d="M200,65 V88"  stroke="#334155" stroke-width="1.5" fill="none" marker-end="url(#ah)"/>
+  <path id="v1" d="M200,138 V158" stroke="#334155" stroke-width="1.5" fill="none" marker-end="url(#ah)"/>
+  <path id="v2" d="M200,208 V228" stroke="#334155" stroke-width="1.5" fill="none" marker-end="url(#ah)"/>
+  <path id="v3" d="M200,278 V298" stroke="#334155" stroke-width="1.5" fill="none" marker-end="url(#ah)"/>
+  <path id="v4" d="M200,348 V373" stroke="#334155" stroke-width="1.5" fill="none" marker-end="url(#ah)"/>
+
+  <!-- ── Horizontal (rejection) arrows ── -->
+  <path id="h1" d="M280,113 H330" stroke="#475569" stroke-width="1.5" fill="none" marker-end="url(#ah-r)"/>
+  <path id="h2" d="M280,183 H330" stroke="#475569" stroke-width="1.5" fill="none" marker-end="url(#ah-r)"/>
+  <path id="h3" d="M280,253 H330" stroke="#475569" stroke-width="1.5" fill="none" marker-end="url(#ah-r)"/>
+  <path id="h4" d="M280,323 H330" stroke="#475569" stroke-width="1.5" fill="none" marker-end="url(#ah-r)"/>
+
+  <!-- ── Nodes ── -->
+
+  <!-- POST /notifications -->
+  <rect x="110" y="35" width="180" height="36" rx="8" fill="#172040" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="200" y="53" text-anchor="middle" dominant-baseline="central" fill="#93c5fd" font-size="12" font-weight="600">POST /notifications</text>
+
+  <!-- Diamond 1: channel enabled? -->
+  <path d="M200,88 L280,113 L200,138 L120,113 Z" fill="#1a1a2e" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="200" y="109" text-anchor="middle" dominant-baseline="central" fill="#c4b5fd" font-size="10" font-weight="600">channel</text>
+  <text x="200" y="122" text-anchor="middle" dominant-baseline="central" fill="#c4b5fd" font-size="10" font-weight="600">enabled?</text>
+
+  <!-- Diamond 2: type enabled? -->
+  <path d="M200,158 L280,183 L200,208 L120,183 Z" fill="#1a1a2e" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="200" y="179" text-anchor="middle" dominant-baseline="central" fill="#c4b5fd" font-size="10" font-weight="600">type</text>
+  <text x="200" y="192" text-anchor="middle" dominant-baseline="central" fill="#c4b5fd" font-size="10" font-weight="600">enabled?</text>
+
+  <!-- Diamond 3: rate limit ok? -->
+  <path d="M200,228 L280,253 L200,278 L120,253 Z" fill="#1a1a2e" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="200" y="249" text-anchor="middle" dominant-baseline="central" fill="#c4b5fd" font-size="10" font-weight="600">rate limit</text>
+  <text x="200" y="262" text-anchor="middle" dominant-baseline="central" fill="#c4b5fd" font-size="10" font-weight="600">ok?</text>
+
+  <!-- Diamond 4: DND active? -->
+  <path d="M200,298 L280,323 L200,348 L120,323 Z" fill="#1a1a2e" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="200" y="319" text-anchor="middle" dominant-baseline="central" fill="#fcd34d" font-size="10" font-weight="600">DND</text>
+  <text x="200" y="332" text-anchor="middle" dominant-baseline="central" fill="#fcd34d" font-size="10" font-weight="600">active?</text>
+
+  <!-- Dispatched -->
+  <rect x="120" y="373" width="160" height="40" rx="8" fill="#05201a" stroke="#10b981" stroke-width="1.5"/>
+  <text x="200" y="389" text-anchor="middle" dominant-baseline="central" fill="#6ee7b7" font-size="13" font-weight="700">✓ Dispatched</text>
+
+  <!-- Right-side: Dropped boxes -->
+  <rect x="330" y="96" width="110" height="34" rx="8" fill="#2a1010" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="385" y="113" text-anchor="middle" dominant-baseline="central" fill="#fca5a5" font-size="11" font-weight="600">✗ Dropped</text>
+
+  <rect x="330" y="166" width="110" height="34" rx="8" fill="#2a1010" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="385" y="183" text-anchor="middle" dominant-baseline="central" fill="#fca5a5" font-size="11" font-weight="600">✗ Dropped</text>
+
+  <rect x="330" y="236" width="110" height="34" rx="8" fill="#2a1010" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="385" y="253" text-anchor="middle" dominant-baseline="central" fill="#fca5a5" font-size="11" font-weight="600">✗ Dropped</text>
+
+  <!-- Right-side: Scheduled box -->
+  <rect x="330" y="306" width="110" height="34" rx="8" fill="#231a05" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="385" y="319" text-anchor="middle" dominant-baseline="central" fill="#fcd34d" font-size="10" font-weight="600">⏐ Held until</text>
+  <text x="385" y="332" text-anchor="middle" dominant-baseline="central" fill="#fcd34d" font-size="10" font-weight="600">DND ends</text>
+
+  <!-- ── Yes / No labels ── -->
+  <text x="190" y="80"  text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">Yes</text>
+  <text x="190" y="150" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">Yes</text>
+  <text x="190" y="220" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">Yes</text>
+  <text x="190" y="290" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">Yes</text>
+  <text x="190" y="360" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">No</text>
+
+  <text x="304" y="107" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">No</text>
+  <text x="304" y="177" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">No</text>
+  <text x="304" y="247" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">No</text>
+  <text x="304" y="317" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="600">Yes</text>
+
+  <!-- ── Animated: happy-path dot going down ── -->
+  <path id="happy" d="M200,65 V88 L200,138 V158 L200,208 V228 L200,278 V298 L200,348 V373 L200,395" fill="none"/>
+  <circle r="4.5" fill="#3b82f6" opacity="0.9">
+    <animateMotion dur="4s" repeatCount="indefinite" begin="0s">
+      <mpath href="#happy"/>
+    </animateMotion>
+  </circle>
+
+  <!-- ── Animated: rejection dots (staggered) ── -->
+  <circle r="4" fill="#f87171" opacity="0.85">
+    <animateMotion dur="3s" repeatCount="indefinite" begin="1s">
+      <mpath href="#h1"/>
+    </animateMotion>
+  </circle>
+
+  <circle r="4" fill="#f87171" opacity="0.85">
+    <animateMotion dur="3s" repeatCount="indefinite" begin="2s">
+      <mpath href="#h2"/>
+    </animateMotion>
+  </circle>
+
+  <circle r="4" fill="#f87171" opacity="0.85">
+    <animateMotion dur="3s" repeatCount="indefinite" begin="3s">
+      <mpath href="#h3"/>
+    </animateMotion>
+  </circle>
+
+  <circle r="4" fill="#fbbf24" opacity="0.85">
+    <animateMotion dur="3s" repeatCount="indefinite" begin="2.5s">
+      <mpath href="#h4"/>
+    </animateMotion>
+  </circle>
+
+  <!-- Legend -->
+  <circle cx="28" cy="419" r="4.5" fill="#3b82f6"/>
+  <text x="40" y="419" dominant-baseline="central" fill="#475569" font-size="9">happy path</text>
+  <circle cx="115" cy="419" r="4" fill="#f87171"/>
+  <text x="127" y="419" dominant-baseline="central" fill="#475569" font-size="9">dropped</text>
+  <circle cx="185" cy="419" r="4" fill="#fbbf24"/>
+  <text x="197" y="419" dominant-baseline="central" fill="#475569" font-size="9">held / scheduled</text>
+</svg>

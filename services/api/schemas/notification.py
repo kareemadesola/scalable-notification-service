@@ -32,7 +32,7 @@ class NotificationResponse(BaseModel):
     status: NotificationStatus
     subject: Optional[str]
     body: str
-    metadata: Optional[dict]
+    extra_data: Optional[dict]
     is_read: bool
     scheduled_at: Optional[datetime]
     created_at: datetime

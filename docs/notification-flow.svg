@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 290" width="860" height="290" font-family="ui-monospace, Menlo, monospace">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <style>
+      @keyframes fadein { from { opacity:0 } to { opacity:1 } }
+      .node  { fill:#1e293b; }
+      .lbl   { text-anchor:middle; dominant-baseline:central; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="860" height="290" rx="14" fill="#0f172a"/>
+
+  <!-- Section label -->
+  <text x="430" y="18" class="lbl" fill="#475569" font-size="10" letter-spacing="2">NOTIFICATION DISPATCH FLOW</text>
+
+  <!-- ── Arrows (drawn behind nodes) ── -->
+
+  <!-- Client → API -->
+  <path id="c2a" d="M122,145 H168" stroke="#334155" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+
+  <!-- API → RabbitMQ -->
+  <path id="a2m" d="M272,145 H348" stroke="#334155" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+
+  <!-- RabbitMQ → Processor -->
+  <path id="m2p" d="M452,145 H528" stroke="#334155" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+
+  <!-- Processor → Provider -->
+  <path id="p2pv" d="M632,145 H708" stroke="#334155" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+
+  <!-- API ↔ PostgreSQL (up/down) -->
+  <path id="a2db" d="M212,123 V82" stroke="#8b5cf6" stroke-width="1.5" fill="none" marker-end="url(#ah)"/>
+  <path d="M228,82 V123" stroke="#8b5cf6" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#ah)"/>
+
+  <!-- API ↔ Redis (down/up) -->
+  <path id="a2rd" d="M228,167 V207" stroke="#ef4444" stroke-width="1.5" fill="none" marker-end="url(#ah)"/>
+  <path d="M212,207 V167" stroke="#ef4444" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#ah)"/>
+
+  <!-- ── Nodes ── -->
+
+  <!-- Client -->
+  <rect x="22" y="123" width="100" height="44" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+  <text x="72" y="141" class="lbl" fill="#cbd5e1" font-size="12" font-weight="600">Client</text>
+  <text x="72" y="156" class="lbl" fill="#475569" font-size="9">your service</text>
+
+  <!-- API -->
+  <rect x="170" y="123" width="100" height="44" rx="8" fill="#172040" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="220" y="141" class="lbl" fill="#93c5fd" font-size="12" font-weight="600">FastAPI</text>
+  <text x="220" y="156" class="lbl" fill="#475569" font-size="9">:8000</text>
+
+  <!-- PostgreSQL (above) -->
+  <rect x="160" y="38" width="120" height="42" rx="8" fill="#1a1535" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="220" y="56" class="lbl" fill="#c4b5fd" font-size="11" font-weight="600">PostgreSQL</text>
+  <text x="220" y="71" class="lbl" fill="#475569" font-size="9">notifications DB</text>
+
+  <!-- Redis (below) -->
+  <rect x="160" y="207" width="120" height="42" rx="8" fill="#2a1010" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="220" y="225" class="lbl" fill="#fca5a5" font-size="11" font-weight="600">Redis</text>
+  <text x="220" y="240" class="lbl" fill="#475569" font-size="9">prefs &amp; rate limit</text>
+
+  <!-- RabbitMQ -->
+  <rect x="350" y="123" width="100" height="44" rx="8" fill="#231a05" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="400" y="141" class="lbl" fill="#fcd34d" font-size="12" font-weight="600">RabbitMQ</text>
+  <text x="400" y="156" class="lbl" fill="#475569" font-size="9">email · sms · push</text>
+
+  <!-- Processor -->
+  <rect x="530" y="123" width="100" height="44" rx="8" fill="#05201a" stroke="#10b981" stroke-width="1.5"/>
+  <text x="580" y="141" class="lbl" fill="#6ee7b7" font-size="12" font-weight="600">Processor</text>
+  <text x="580" y="156" class="lbl" fill="#475569" font-size="9">consumer worker</text>
+
+  <!-- Provider -->
+  <rect x="710" y="123" width="128" height="44" rx="8" fill="#051a25" stroke="#06b6d4" stroke-width="1.5"/>
+  <text x="774" y="138" class="lbl" fill="#67e8f9" font-size="11" font-weight="600">Provider</text>
+  <text x="774" y="152" class="lbl" fill="#475569" font-size="9">SendGrid · Twilio</text>
+  <text x="774" y="163" class="lbl" fill="#3f5464" font-size="8">FCM · (mock mode)</text>
+
+  <!-- ── Arrow step labels ── -->
+  <text x="145" y="138" class="lbl" fill="#334155" font-size="8">HTTP</text>
+  <text x="310" y="138" class="lbl" fill="#334155" font-size="8">publish</text>
+  <text x="490" y="138" class="lbl" fill="#334155" font-size="8">consume</text>
+  <text x="670" y="138" class="lbl" fill="#334155" font-size="8">deliver</text>
+
+  <!-- ── Animated data packets ── -->
+
+  <!-- Client → API: blue -->
+  <circle r="4" fill="#60a5fa" opacity="0.95">
+    <animateMotion dur="2.5s" repeatCount="indefinite" begin="0s">
+      <mpath href="#c2a"/>
+    </animateMotion>
+  </circle>
+
+  <!-- API → RabbitMQ: blue -->
+  <circle r="4" fill="#60a5fa" opacity="0.95">
+    <animateMotion dur="2.5s" repeatCount="indefinite" begin="0.6s">
+      <mpath href="#a2m"/>
+    </animateMotion>
+  </circle>
+
+  <!-- RabbitMQ → Processor: amber -->
+  <circle r="4" fill="#fbbf24" opacity="0.95">
+    <animateMotion dur="2.5s" repeatCount="indefinite" begin="1.2s">
+      <mpath href="#m2p"/>
+    </animateMotion>
+  </circle>
+
+  <!-- Processor → Provider: green -->
+  <circle r="4" fill="#34d399" opacity="0.95">
+    <animateMotion dur="2.5s" repeatCount="indefinite" begin="1.8s">
+      <mpath href="#p2pv"/>
+    </animateMotion>
+  </circle>
+
+  <!-- API → PostgreSQL: purple -->
+  <circle r="3.5" fill="#a78bfa" opacity="0.9">
+    <animateMotion dur="1.8s" repeatCount="indefinite" begin="0.3s">
+      <mpath href="#a2db"/>
+    </animateMotion>
+  </circle>
+
+  <!-- API → Redis: red -->
+  <circle r="3.5" fill="#f87171" opacity="0.9">
+    <animateMotion dur="1.8s" repeatCount="indefinite" begin="0s">
+      <mpath href="#a2rd"/>
+    </animateMotion>
+  </circle>
+
+  <!-- Legend -->
+  <rect x="22" y="262" width="8" height="8" rx="2" fill="#60a5fa"/>
+  <text x="36" y="270" fill="#475569" font-size="9">request path</text>
+  <rect x="110" y="262" width="8" height="8" rx="2" fill="#fbbf24"/>
+  <text x="124" y="270" fill="#475569" font-size="9">queue message</text>
+  <rect x="215" y="262" width="8" height="8" rx="2" fill="#34d399"/>
+  <text x="229" y="270" fill="#475569" font-size="9">delivery</text>
+  <rect x="285" y="262" width="8" height="8" rx="2" fill="#a78bfa"/>
+  <text x="299" y="270" fill="#475569" font-size="9">DB write</text>
+  <rect x="350" y="262" width="8" height="8" rx="2" fill="#f87171"/>
+  <text x="364" y="270" fill="#475569" font-size="9">cache lookup</text>
+</svg>
