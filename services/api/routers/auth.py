@@ -29,6 +29,7 @@ async def issue_token(body: TokenRequest, db: AsyncSession = Depends(get_db)):
         access_token=create_access_token(subject),
         refresh_token=create_refresh_token(subject),
         expires_in=settings.jwt_expire_minutes * 60,
+        refresh_expires_in=settings.jwt_refresh_expire_days * 24 * 60 * 60,
     )
 
 
