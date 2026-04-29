@@ -73,6 +73,73 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── In-App WebSocket Service ──────────────────────────────────
+  inapp_service:
+    build:
+      context: ./services/inapp_service
+      dockerfile: Dockerfile
+    container_name: ns_inapp
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-notifications}
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Email Processor ───────────────────────────────────────────
+  email_processor:
+    build:
+      context: ./services/email_processor
+      dockerfile: Dockerfile
+    container_name: ns_email_processor
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-notifications}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # ── SMS Processor ─────────────────────────────────────────────
+  sms_processor:
+    build:
+      context: ./services/sms_processor
+      dockerfile: Dockerfile
+    container_name: ns_sms_processor
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-notifications}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # ── Push Processor ────────────────────────────────────────────
+  push_processor:
+    build:
+      context: ./services/push_processor
+      dockerfile: Dockerfile
+    container_name: ns_push_processor
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-notifications}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
   # ── Prometheus ────────────────────────────────────────────────────────
   prometheus:
     image: prom/prometheus:latest

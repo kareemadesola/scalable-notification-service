@@ -62,5 +62,8 @@ class Settings(BaseSettings):
     # FCM
     fcm_server_key: str = ""
 
+    # In-App Service
+    inapp_service_url: str = "http://inapp_service:8001"
+
 
 settings = Settings()

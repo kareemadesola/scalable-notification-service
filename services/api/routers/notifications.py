@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
+import httpx
+import structlog
 
+from config import settings
 from db.database import get_db
 from models.models import NotificationChannel, NotificationStatus
 from schemas.notification import (
@@ -15,6 +18,7 @@ from services.notification_service import (
 )
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
+logger = structlog.get_logger()
 
 
 @router.post("", response_model=NotificationResponse, status_code=status.HTTP_201_CREATED)
@@ -26,27 +30,45 @@ async def create_notification_endpoint(
     """
     Create and dispatch a notification.
     - Checks user preferences (channel opt-in, type opt-in, rate limits)
-    - Saves to DB, then publishes to RabbitMQ (or writes directly for in-app)
+    - Saves to DB, then publishes to RabbitMQ (or broadcasts directly for in-app)
     """
     notification = await create_notification(data, db)
 
-    # Publish to RabbitMQ for async channels; in-app is already written to DB
-    if notification.status == NotificationStatus.pending and notification.channel != NotificationChannel.inapp:
-        publisher = request.app.state.publisher
-        await publisher.publish(
-            queue=notification.channel.value,
-            payload={
-                "notification_id": notification.id,
-                "user_id": str(notification.user_id),
-                "channel": notification.channel.value,
-                "type": notification.type.value,
-                "subject": notification.subject,
-                "body": notification.body,
-                "metadata": notification.metadata,
-            },
-        )
-        notification.status = NotificationStatus.queued
-        await db.flush()
+    if notification.status == NotificationStatus.pending:
+        if notification.channel == NotificationChannel.inapp:
+            # Bypass queue — broadcast directly via WebSocket service
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.post(
+                        f"{settings.inapp_service_url}/inapp/broadcast/{notification.user_id}",
+                        json={
+                            "id": notification.id,
+                            "subject": notification.subject,
+                            "body": notification.body,
+                            "metadata": notification.metadata,
+                        },
+                        timeout=2.0,
+                    )
+            except Exception as exc:
+                # Non-fatal — notification is in DB, client can poll inbox
+                logger.warning("In-app broadcast failed", error=str(exc), notification_id=notification.id)
+        else:
+            # Async channels: publish to RabbitMQ
+            publisher = request.app.state.publisher
+            await publisher.publish(
+                queue=notification.channel.value,
+                payload={
+                    "notification_id": notification.id,
+                    "user_id": str(notification.user_id),
+                    "channel": notification.channel.value,
+                    "type": notification.type.value,
+                    "subject": notification.subject,
+                    "body": notification.body,
+                    "metadata": notification.metadata,
+                },
+            )
+            notification.status = NotificationStatus.queued
+            await db.flush()
 
     return notification
 
