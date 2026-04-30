@@ -8,7 +8,7 @@
 ![Docker](https://img.shields.io/badge/Docker-Compose-blue?logo=docker)
 ![Grafana](https://img.shields.io/badge/Grafana-Prometheus-F46800?logo=grafana)
 
-A production-grade notification service built as a system design portfolio project. Handles multi-channel delivery (email, SMS, push, in-app WebSocket), user preferences, scheduled notifications, retry with exponential backoff, dead-letter queues, JWT auth, Redis rate limiting, and full observability via Prometheus + Grafana.
+A production-grade notification service built as a system design portfolio project. Handles multi-channel delivery (email, SMS, push, in-app WebSocket), user preferences, scheduled notifications, retry with exponential backoff, dead-letter queues, JWT auth with refresh tokens, Redis rate limiting, and full observability via Prometheus + Grafana.
 
 ---
 
@@ -31,7 +31,7 @@ A production-grade notification service built as a system design portfolio proje
 - **Dead Letter Queue (DLQ)** — failed messages preserved for manual review without data loss
 - **Delivery logging** — every attempt recorded in `notification_logs` (status, attempt number, provider response)
 - **Redis caching** — user preferences cached (5 min TTL) to eliminate hot-path DB reads
-- **JWT authentication** — Bearer token required on all protected endpoints
+- **JWT authentication** — access token (60 min) + refresh token (7 days), Bearer scheme on all protected endpoints
 - **API rate limiting** — 100 req/60s per IP via Redis sliding window; returns `429` with `Retry-After`
 - **Prometheus + Grafana** — request rate, p95 latency, error rate, active connections; auto-provisioned dashboard
 - **Structured JSON logging** — `structlog` throughout; JSON in production, colour console in development
@@ -56,7 +56,7 @@ A production-grade notification service built as a system design portfolio proje
 | Service | Port | Description |
 |---------|------|-------------|
 | `api` | 8000 | FastAPI — ingestion, preference checks, publishes to RabbitMQ |
-| `inapp_service` | 8001 | FastAPI WebSocket server — real-time in-app delivery |
+| `inapp_service` | 8001 | FastAPI WebSocket server — real-time in-app delivery (direct HTTP, no queue) |
 | `email_processor` | — | RabbitMQ consumer → SendGrid |
 | `sms_processor` | — | RabbitMQ consumer → Twilio |
 | `push_processor` | — | RabbitMQ consumer → FCM |
@@ -64,27 +64,28 @@ A production-grade notification service built as a system design portfolio proje
 | `postgres` | 5432 | Primary data store |
 | `redis` | 6379 | Preference cache + rate limiting |
 | `rabbitmq` | 5672 / 15672 | Message broker (Management UI on 15672) |
-| `prometheus` | 9090 | Metrics scraping |
-| `grafana` | 3000 | Dashboards |
+| `prometheus` | 9090 | Scrapes `/metrics` from the API |
+| `grafana` | 3000 | Dashboards (auto-provisioned) |
 
 ---
 
 ## API Endpoints
 
-All endpoints require `Authorization: Bearer <token>`.
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `POST` | `/auth/token` | — | Issue access + refresh tokens by `user_id` |
+| `POST` | `/auth/refresh` | — | Get a new access token using a refresh token |
+| `POST` | `/notifications` | ✅ | Create and dispatch a notification |
+| `GET` | `/notifications/:id` | ✅ | Fetch notification by ID |
+| `PATCH` | `/notifications/:id` | ✅ | Update status or mark read/unread |
+| `GET` | `/users/:id/notifications` | ✅ | Paginated inbox (newest first) |
+| `GET` | `/users/:id/preferences` | ✅ | Fetch user notification preferences |
+| `PUT` | `/users/:id/preferences` | ✅ | Update preferences (partial update supported) |
+| `GET` | `/health` | — | Health check |
+| `GET` | `/metrics` | — | Prometheus metrics |
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/notifications` | Create and dispatch a notification |
-| `GET` | `/notifications/:id` | Fetch notification by ID |
-| `PATCH` | `/notifications/:id` | Update status or mark read/unread |
-| `GET` | `/users/:id/notifications` | Paginated inbox (newest first) |
-| `GET` | `/users/:id/preferences` | Fetch user notification preferences |
-| `PUT` | `/users/:id/preferences` | Update preferences (partial update supported) |
-| `GET` | `/health` | Health check (no auth required) |
-| `GET` | `/metrics` | Prometheus metrics (no auth required) |
-
-Interactive API docs: `http://localhost:8000/docs`
+Interactive API docs: `http://localhost:8000/docs`  
+Ready-to-use curl examples: [docs/TEST_PAYLOADS.md](docs/TEST_PAYLOADS.md)
 
 ---
 
@@ -111,15 +112,25 @@ docker compose up --build
 | API Docs (Swagger) | http://localhost:8000/docs |
 | In-App WebSocket | ws://localhost:8001/ws/{user_id} |
 | RabbitMQ UI | http://localhost:15672 |
-| Grafana | http://localhost:3000 |
+| Grafana | http://localhost:3000/d/notification-service |
 | Prometheus | http://localhost:9090 |
 
-### Generate a JWT (for testing)
+### Authenticate
 
-```python
-from services.api.auth import create_access_token
-token = create_access_token("my-service")
-print(token)
+```bash
+# 1. Get tokens
+curl -X POST http://localhost:8000/auth/token \
+  -H 'Content-Type: application/json' \
+  -d '{"user_id": "<your-user-id>"}'
+
+# 2. Use the access_token on protected endpoints
+curl http://localhost:8000/users/<user-id>/notifications \
+  -H "Authorization: Bearer <access_token>"
+
+# 3. Refresh when expired (access token lasts 60 min, refresh token 7 days)
+curl -X POST http://localhost:8000/auth/refresh \
+  -H 'Content-Type: application/json' \
+  -d '{"refresh_token": "<refresh_token>"}'
 ```
 
 ---
@@ -130,32 +141,39 @@ print(token)
 scalable-notification-service/
 ├── services/
 │   ├── api/                      # FastAPI notification service
-│   │   ├── auth.py               # JWT encode/decode + dependency
-│   │   ├── config.py             # Pydantic settings
+│   │   ├── auth.py               # JWT encode/decode, access + refresh tokens
+│   │   ├── config.py             # Pydantic settings (env-driven)
 │   │   ├── logging_config.py     # structlog setup
 │   │   ├── main.py               # App factory, lifespan, middleware
 │   │   ├── cache/                # Redis async client
 │   │   ├── db/                   # SQLAlchemy engine + session
 │   │   ├── middleware/           # Rate limiting
 │   │   ├── models/               # ORM models
-│   │   ├── routers/              # notifications.py, users.py
+│   │   ├── routers/              # auth.py, notifications.py, users.py
 │   │   ├── schemas/              # Pydantic request/response schemas
 │   │   └── services/             # Business logic (preference, notification, user)
 │   ├── email_processor/          # RabbitMQ consumer → SendGrid
 │   ├── sms_processor/            # RabbitMQ consumer → Twilio
 │   ├── push_processor/           # RabbitMQ consumer → FCM
-│   ├── inapp_service/            # WebSocket server (bypasses queue)
+│   ├── inapp_service/            # WebSocket server (direct HTTP, bypasses queue)
 │   ├── scheduler/                # Polls DB, dispatches due notifications
 │   └── shared/
 │       └── base_consumer.py      # Shared retry + DLQ + DB logging logic
 ├── db/
 │   └── init.sql                  # Full PostgreSQL schema + triggers
 ├── monitoring/
-│   ├── prometheus.yml            # Scrape config
+│   ├── prometheus.yml            # Scrape config (targets API /metrics)
 │   └── grafana/provisioning/     # Auto-provisioned datasource + dashboard
 ├── docs/
-│   ├── architecture.md
-│   └── architecture-diagram.svg
+│   ├── architecture.md           # Component descriptions
+│   ├── architecture-diagram.svg  # Animated architecture diagram
+│   ├── DATABASE.md               # Full schema reference + useful queries
+│   ├── MONITORING.md             # Prometheus/Grafana guide + PromQL queries
+│   ├── TEST_PAYLOADS.md          # Ready-to-use curl examples for every endpoint
+│   ├── USER_GUIDE.md             # End-to-end usage guide
+│   ├── USE_CASES.md              # Real-world use case scenarios
+│   ├── TROUBLESHOOTING.md        # 14 bugs logged with root cause + fix
+│   └── CHANGELOG.md              # Full commit history + future work
 ├── docker-compose.yml
 └── .env.example
 ```
@@ -179,11 +197,12 @@ Preferences are read on every single notification dispatch. At 17K req/sec, a DB
 **Why exponential backoff + DLQ?**
 Transient failures (network blips, provider downtime) should be retried. Permanent failures (invalid addresses, expired tokens) should not block the queue. DLQ preserves failed messages for manual inspection without data loss.
 
+**Why access + refresh tokens?**
+Short-lived access tokens (60 min) limit the exposure window if a token is leaked. Long-lived refresh tokens (7 days, configurable via `JWT_REFRESH_EXPIRE_DAYS`) avoid forcing users to re-authenticate frequently.
+
 ---
 
 ## What I Learned
-
-This project was built to reinforce system design concepts:
 
 - Decoupling ingestion from delivery with a message queue (RabbitMQ)
 - Channel-specific consumers with independent scaling and failure modes
@@ -191,11 +210,25 @@ This project was built to reinforce system design concepts:
 - Promotional rate limiting using Redis atomic counters (no race conditions)
 - Retry patterns (exponential backoff) and DLQ for at-least-once delivery guarantees
 - Real-time vs. async delivery trade-offs (WebSocket vs. queue)
+- JWT token lifecycle: access + refresh token patterns
 - Observability: Prometheus metrics, structured JSON logs, Grafana dashboards
+
+---
+
+## Documentation
+
+| Doc | Description |
+|-----|-------------|
+| [DATABASE.md](docs/DATABASE.md) | Schema reference, indexes, enums, useful queries |
+| [TEST_PAYLOADS.md](docs/TEST_PAYLOADS.md) | Copy-paste curl examples for every endpoint |
+| [MONITORING.md](docs/MONITORING.md) | Prometheus/Grafana guide with PromQL queries |
+| [USER_GUIDE.md](docs/USER_GUIDE.md) | Full end-to-end usage walkthrough |
+| [USE_CASES.md](docs/USE_CASES.md) | Real-world scenarios (e-commerce, fintech, SaaS…) |
+| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | 14 bugs: root cause + fix |
+| [CHANGELOG.md](docs/CHANGELOG.md) | Full commit history + future work |
 
 ---
 
 ## License
 
 MIT — see [LICENSE](LICENSE)
-
