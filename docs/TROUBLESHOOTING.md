@@ -306,3 +306,28 @@ Even with `depends_on: condition: service_healthy` in Docker Compose, there can 
 
 **Fix**
 Added exponential backoff retry loops in `main.py` lifespan for both the DB schema creation and RabbitMQ publisher connection — up to 5 attempts with increasing sleep intervals (2s, 4s, 6s, 8s, 10s).
+
+---
+
+## 15. Scheduler crash — `ValueError: dictionary update sequence element #0 has length 1; 2 is required`
+
+**Symptom**
+`ns_scheduler` container enters a crash-restart loop immediately after processing its first due notification.
+
+**Root cause**
+The `metadata` column is stored as `TEXT` (JSON string) in PostgreSQL. When fetched via a raw `asyncpg` query, `row["metadata"]` is a plain Python `str`. Passing a string to `dict()` tries to iterate its characters as `(key, value)` pairs, which fails for any string longer than 1 character.
+
+```python
+# broken
+"metadata": dict(row["metadata"]) if row["metadata"] else {}
+```
+
+**Fix**
+Use `json.loads()` to deserialise the string first, with a fallback to `dict()` for cases where the driver returns an already-mapped object:
+
+```python
+"metadata": (json.loads(row["metadata"]) if isinstance(row["metadata"], str) else dict(row["metadata"])) if row["metadata"] else {}
+```
+
+**Lesson**
+When reading JSON columns via raw SQL drivers (asyncpg, psycopg2), always deserialise with `json.loads()` — not `dict()`. ORM models handle this automatically, but raw `Row` objects do not.

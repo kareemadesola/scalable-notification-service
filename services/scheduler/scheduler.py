@@ -97,7 +97,7 @@ async def run_scheduler():
                     "type": row["type"],
                     "subject": row["subject"],
                     "body": row["body"],
-                    "metadata": dict(row["metadata"]) if row["metadata"] else {},
+                    "metadata": (json.loads(row["metadata"]) if isinstance(row["metadata"], str) else dict(row["metadata"])) if row["metadata"] else {},
                 }
 
                 try:
